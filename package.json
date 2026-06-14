@@ -4,7 +4,8 @@
   "description": "A custom status line plugin/extension for the Antigravity CLI, displaying token usage, quotas, context window, and git branch.",
   "main": "statusline.js",
   "scripts": {
-    "test": "cat stdin_capture.json | node statusline.js"
+    "test": "cat stdin_capture.json | node statusline.js",
+    "setup": "node install.js"
   },
   "keywords": [
     "antigravity",

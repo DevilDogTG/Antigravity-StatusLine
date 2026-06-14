@@ -42,22 +42,16 @@ Background Tasks: none
 ## Installation & Configuration
 
 1. **Ensure Node.js is installed** (v18+ recommended).
-2. **Clone/Move files**: Keep the `statusline.js` in a persistent location (e.g., `/home/devildogtg/repository/DevDogs/Antigravity-StatusLine/statusline.js`).
-3. **Make the script executable**:
+2. **Clone the repository** to a persistent location on your machine.
+3. **Run the installation script**:
    ```bash
-   chmod +x statusline.js
+   npm run setup
    ```
-4. **Update Settings**: Edit your Antigravity settings file (usually located at `~/.gemini/antigravity-cli/settings.json`) to point the `statusLine` property to your script:
-   ```json
-   {
-     "statusLine": {
-       "type": "command",
-       "command": "/home/devildogtg/repository/DevDogs/Antigravity-StatusLine/statusline.js",
-       "enabled": true
-     }
-   }
-   ```
-5. **Reload**: If the CLI is already running, type `/statusline on` to activate, or restart the CLI session.
+   This script is cross-platform (works on both Windows and Linux/macOS) and will:
+   - Detect and backup your existing `settings.json` file.
+   - Configure the `statusLine` command path automatically to point to your clone of `statusline.js`.
+   - Make `statusline.js` executable (on Unix-like systems).
+4. **Reload**: If the Antigravity CLI is already running, type `/statusline on` to activate, or restart the CLI session.
 
 ---
 
