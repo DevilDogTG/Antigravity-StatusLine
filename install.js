@@ -49,9 +49,14 @@ try {
   }
 
   // 3. Update the statusLine configuration
+  const isWindows = os.platform() === 'win32';
+  // On Windows, executing a .js file directly triggers the default file association (e.g. editor).
+  // We prefix the command with 'node' to execute it correctly.
+  const command = isWindows ? `node ${statuslinePath}` : statuslinePath;
+
   config.statusLine = {
     type: 'command',
-    command: statuslinePath,
+    command: command,
     enabled: true
   };
 
@@ -60,7 +65,6 @@ try {
   console.log('✓ settings.json updated successfully.');
 
   // 4. Handle executable permissions on Unix-like systems
-  const isWindows = os.platform() === 'win32';
   if (!isWindows) {
     try {
       fs.chmodSync(statuslinePath, '755');
