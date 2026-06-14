@@ -1,0 +1,17 @@
+{
+  "name": "antigravity-statusline",
+  "version": "1.0.0",
+  "description": "A custom status line plugin/extension for the Antigravity CLI, displaying token usage, quotas, context window, and git branch.",
+  "main": "statusline.js",
+  "scripts": {
+    "test": "cat stdin_capture.json | node statusline.js"
+  },
+  "keywords": [
+    "antigravity",
+    "statusline",
+    "cli",
+    "gemini"
+  ],
+  "author": "DevDogs",
+  "license": "MIT"
+}
