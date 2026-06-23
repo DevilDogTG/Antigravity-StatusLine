@@ -27,64 +27,68 @@ function colorize(text, color, isBold = false) {
 
 function formatTokens(count) {
   if (count === undefined || count === null) return '0';
-  if (count >= 1000000) {
-    return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  var num = Number(count);
+  if (isNaN(num)) return '0';
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
   }
-  if (count >= 1000) {
-    return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
   }
-  return count.toString();
+  return num.toString();
 }
 
 function formatSeconds(seconds) {
   if (seconds === undefined || seconds === null) return '';
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
+  var secs = Number(seconds);
+  if (isNaN(secs) || secs < 0) return '';
+  if (secs < 60) return `${secs}s`;
+  var minutes = Math.floor(secs / 60);
   if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
+  var hours = Math.floor(minutes / 60);
+  var remainingMinutes = minutes % 60;
   if (hours < 24) return `${hours}h${remainingMinutes}m`;
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
+  var days = Math.floor(hours / 24);
+  var remainingHours = hours % 24;
   return `${days}d${remainingHours}h`;
 }
 
 function getGitStatus(cwd) {
   try {
     // try git branch --show-current first (works on empty repos)
-    let branch = execSync('git branch --show-current', {
+    var branch = execSync('git branch --show-current', {
       cwd,
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 150
+      timeout: 2000
     }).toString().trim();
     
     if (!branch) {
       branch = execSync('git rev-parse --abbrev-ref HEAD', {
         cwd,
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 150
+        timeout: 2000
       }).toString().trim();
     }
     
     if (!branch) return null;
     
     // Check dirty status and file counts
-    const status = execSync('git status --porcelain', {
+    var status = execSync('git status --porcelain', {
       cwd,
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 150
+      timeout: 2000
     }).toString().trim();
     
-    let staged = 0;
-    let unstaged = 0;
-    let untracked = 0;
+    var staged = 0;
+    var unstaged = 0;
+    var untracked = 0;
     
     if (status) {
-      const lines = status.split('\n');
-      for (const line of lines) {
+      var lines = status.split('\n');
+      for (var line of lines) {
         if (line.length < 3) continue;
-        const indexStatus = line[0];
-        const workTreeStatus = line[1];
+        var indexStatus = line[0];
+        var workTreeStatus = line[1];
         
         if (indexStatus === '?' && workTreeStatus === '?') {
           untracked++;
@@ -187,7 +191,7 @@ function main() {
   }
 
   if (!input) {
-    console.log(colorize('● OFFLINE', GRAY, true));
+    console.log(colorize('● OFFLINE', GRAY, true) + '\n\n\n');
     return;
   }
 
@@ -195,177 +199,189 @@ function main() {
   try {
     data = JSON.parse(input);
   } catch (e) {
-    console.log(colorize('● STATE ERROR', BRIGHT_RED, true));
+    console.log(colorize('● STATE ERROR', BRIGHT_RED, true) + '\n\n\n');
     return;
   }
 
-  const {
-    cwd,
-    model,
-    context_window,
-    quota,
-    agent_state,
-    terminal_width = 120
-  } = data;
+  try {
+    const {
+      cwd,
+      model,
+      context_window,
+      quota,
+      agent_state,
+      terminal_width = 120
+    } = data || {};
 
-  const separator = colorize(' │ ', GRAY);
+    const separator = colorize(' │ ', GRAY);
 
-  // === LINE 1: status, model, git status (working directory) ===
-  const line1Parts = [];
-  
-  // State
-  let stateStr = '';
-  if (agent_state === 'working') {
-    stateStr = colorize('● WORKING', BRIGHT_YELLOW, true);
-  } else if (agent_state === 'idle') {
-    stateStr = colorize('● IDLE', BRIGHT_GREEN, true);
-  } else {
-    stateStr = colorize(`● ${agent_state.toUpperCase()}`, BRIGHT_CYAN, true);
-  }
-  line1Parts.push(stateStr);
+    // === LINE 1: status, model, git status (working directory) ===
+    const line1Parts = [];
+    
+    // State
+    let stateStr = '';
+    if (agent_state === 'working') {
+      stateStr = colorize('● WORKING', BRIGHT_YELLOW, true);
+    } else if (agent_state === 'idle') {
+      stateStr = colorize('● IDLE', BRIGHT_GREEN, true);
+    } else if (agent_state) {
+      stateStr = colorize(`● ${String(agent_state).toUpperCase()}`, BRIGHT_CYAN, true);
+    } else {
+      stateStr = colorize('● UNKNOWN', GRAY, true);
+    }
+    line1Parts.push(stateStr);
 
-  // Model
-  if (model && model.display_name) {
-    let modelName = model.display_name
-      .replace(/\s*\(medium\)/i, '')
-      .replace(/\s*\(large\)/i, '')
-      .replace(/\s*\(flash\)/i, ' Flash')
-      .replace(/\s*\(pro\)/i, ' Pro');
-    line1Parts.push(colorize(modelName, BRIGHT_CYAN, true));
-  }
+    // Model
+    if (model && model.display_name) {
+      let modelName = String(model.display_name)
+        .replace(/\s*\(medium\)/i, '')
+        .replace(/\s*\(large\)/i, '')
+        .replace(/\s*\(flash\)/i, ' Flash')
+        .replace(/\s*\(pro\)/i, ' Pro');
+      line1Parts.push(colorize(modelName, BRIGHT_CYAN, true));
+    }
 
-  // Git Status
-  if (cwd) {
-    const gitInfo = getGitStatus(cwd);
-    if (gitInfo) {
-      let gitStr = `⌥ ${gitInfo.branch}`;
-      if (gitInfo.isDirty) {
-        const changes = [];
-        if (gitInfo.staged > 0) {
-          changes.push(colorize(`+${gitInfo.staged}`, BRIGHT_GREEN));
+    // Git Status
+    if (cwd) {
+      const gitInfo = getGitStatus(cwd);
+      if (gitInfo && gitInfo.branch) {
+        let gitStr = `⌥ ${gitInfo.branch}`;
+        if (gitInfo.isDirty) {
+          const changes = [];
+          if (gitInfo.staged > 0) {
+            changes.push(colorize(`+${gitInfo.staged}`, BRIGHT_GREEN));
+          }
+          if (gitInfo.unstaged > 0) {
+            changes.push(colorize(`~${gitInfo.unstaged}`, BRIGHT_YELLOW));
+          }
+          if (gitInfo.untracked > 0) {
+            changes.push(colorize(`?${gitInfo.untracked}`, GRAY));
+          }
+          gitStr += ` [${changes.join(' ')}]`;
+          line1Parts.push(colorize(gitStr, BRIGHT_YELLOW, true));
+        } else {
+          line1Parts.push(colorize(gitStr, BRIGHT_GREEN, true));
         }
-        if (gitInfo.unstaged > 0) {
-          changes.push(colorize(`~${gitInfo.unstaged}`, BRIGHT_YELLOW));
-        }
-        if (gitInfo.untracked > 0) {
-          changes.push(colorize(`?${gitInfo.untracked}`, GRAY));
-        }
-        gitStr += ` [${changes.join(' ')}]`;
-        line1Parts.push(colorize(gitStr, BRIGHT_YELLOW, true));
-      } else {
-        line1Parts.push(colorize(gitStr, BRIGHT_GREEN, true));
       }
     }
-  }
 
-  // Working Directory (CWD)
-  if (cwd) {
-    let displayCwd = cwd.replace('/home/devildogtg', '~');
-    // Shorten if extremely long
-    if (displayCwd.length > 50 && terminal_width < 120) {
-      displayCwd = displayCwd.substring(0, 20) + '...' + displayCwd.substring(displayCwd.length - 25);
-    }
-    line1Parts.push(colorize(`Cwd: ${displayCwd}`, GRAY));
-  }
-
-  const line1 = line1Parts.join(separator);
-
-  // === LINE 2: context and quota ===
-  const line2Parts = [];
-  
-  // Context
-  if (context_window) {
-    const percentage = context_window.used_percentage || 0;
-    let barColor = BRIGHT_GREEN;
-    if (percentage >= 80) barColor = BRIGHT_RED;
-    else if (percentage >= 50) barColor = BRIGHT_YELLOW;
-
-    const barLength = terminal_width > 120 ? 10 : 5;
-    const filledLength = Math.round((percentage / 100) * barLength);
-    const emptyLength = barLength - filledLength;
-    const filledBar = '█'.repeat(filledLength);
-    const emptyBar = '░'.repeat(emptyLength);
-    
-    const barStr = `[${colorize(filledBar, barColor)}${colorize(emptyBar, GRAY)}] `;
-    line2Parts.push(`Ctx: ${barStr}${colorize(percentage.toFixed(1) + '%', barColor, percentage >= 80)}`);
-  }
-
-  // Quota
-  if (quota) {
-    const quotaParts = [];
-    const keysToCheck = ['gemini-5h', 'gemini-weekly', '3p-5h', '3p-weekly'];
-    
-    keysToCheck.forEach(key => {
-      const q = quota[key];
-      if (q) {
-        const frac = q.remaining_fraction;
-        if (frac === 1 && terminal_width < 130 && key.includes('3p')) return;
-        
-        let qColor = BRIGHT_GREEN;
-        if (frac <= 0.2) qColor = BRIGHT_RED;
-        else if (frac <= 0.5) qColor = BRIGHT_YELLOW;
-        
-        const shortKey = key.replace('gemini-', '').replace('3p-', '3p:').replace('weekly', 'Wk');
-        let val = `${shortKey}:${colorize(Math.round(frac * 100) + '%', qColor)}`;
-        
-        if (frac < 1.0 && q.reset_in_seconds) {
-          val += `(${formatSeconds(q.reset_in_seconds)})`;
-        }
-        quotaParts.push(val);
+    // Working Directory (CWD)
+    if (cwd) {
+      let displayCwd = String(cwd).replace('/home/devildogtg', '~');
+      // Shorten if extremely long
+      if (displayCwd.length > 50 && terminal_width < 120) {
+        displayCwd = displayCwd.substring(0, 20) + '...' + displayCwd.substring(displayCwd.length - 25);
       }
-    });
-
-    if (quotaParts.length > 0) {
-      line2Parts.push(`Quota: ${quotaParts.join(' ')}`);
-    }
-  }
-
-  const line2 = line2Parts.join(separator);
-
-  // === LINE 3: token info ===
-  const line3Parts = [];
-  
-  // Current Step
-  if (context_window && context_window.current_usage) {
-    const cur = context_window.current_usage;
-    const inTokens = formatTokens(cur.input_tokens);
-    const outTokens = formatTokens(cur.output_tokens);
-    const cachedRead = formatTokens(cur.cache_read_input_tokens || 0);
-    const cachedCreated = formatTokens(cur.cache_creation_input_tokens || 0);
-
-    let cacheInfo = '';
-    if ((cur.cache_read_input_tokens || 0) > 0 || (cur.cache_creation_input_tokens || 0) > 0) {
-      const cParts = [];
-      if ((cur.cache_read_input_tokens || 0) > 0) cParts.push(`💾${cachedRead}`);
-      if ((cur.cache_creation_input_tokens || 0) > 0) cParts.push(`🆕${cachedCreated}`);
-      cacheInfo = ` (${cParts.join('+')})`;
+      line1Parts.push(colorize(`Cwd: ${displayCwd}`, GRAY));
     }
 
-    line3Parts.push(`Step: 📥${inTokens} 📤${outTokens}${cacheInfo}`);
+    const line1 = line1Parts.join(separator);
+
+    // === LINE 2: context and quota ===
+    const line2Parts = [];
+    
+    // Context
+    if (context_window) {
+      const percentage = Number(context_window.used_percentage) || 0;
+      let barColor = BRIGHT_GREEN;
+      if (percentage >= 80) barColor = BRIGHT_RED;
+      else if (percentage >= 50) barColor = BRIGHT_YELLOW;
+
+      const barLength = terminal_width > 120 ? 10 : 5;
+      const filledLength = Math.min(barLength, Math.max(0, Math.round((percentage / 100) * barLength)));
+      const emptyLength = barLength - filledLength;
+      const filledBar = '█'.repeat(filledLength);
+      const emptyBar = '░'.repeat(emptyLength);
+      
+      const barStr = `[${colorize(filledBar, barColor)}${colorize(emptyBar, GRAY)}] `;
+      line2Parts.push(`Ctx: ${barStr}${colorize(percentage.toFixed(1) + '%', barColor, percentage >= 80)}`);
+    }
+
+    // Quota
+    if (quota) {
+      const quotaParts = [];
+      const keysToCheck = ['gemini-5h', 'gemini-weekly', '3p-5h', '3p-weekly'];
+      
+      keysToCheck.forEach(key => {
+        const q = quota[key];
+        if (q) {
+          const frac = Number(q.remaining_fraction);
+          if (isNaN(frac)) return;
+          if (frac === 1 && terminal_width < 130 && key.includes('3p')) return;
+          
+          let qColor = BRIGHT_GREEN;
+          if (frac <= 0.2) qColor = BRIGHT_RED;
+          else if (frac <= 0.5) qColor = BRIGHT_YELLOW;
+          
+          const shortKey = key.replace('gemini-', '').replace('3p-', '3p:').replace('weekly', 'Wk');
+          let val = `${shortKey}:${colorize(Math.round(frac * 100) + '%', qColor)}`;
+          
+          if (frac < 1.0 && q.reset_in_seconds) {
+            const secs = Number(q.reset_in_seconds);
+            if (!isNaN(secs)) {
+              val += `(${formatSeconds(secs)})`;
+            }
+          }
+          quotaParts.push(val);
+        }
+      });
+
+      if (quotaParts.length > 0) {
+        line2Parts.push(`Quota: ${quotaParts.join(' ')}`);
+      }
+    }
+
+    const line2 = line2Parts.join(separator);
+
+    // === LINE 3: token info ===
+    const line3Parts = [];
+    
+    // Current Step
+    if (context_window && context_window.current_usage) {
+      const cur = context_window.current_usage;
+      const inTokens = formatTokens(cur.input_tokens);
+      const outTokens = formatTokens(cur.output_tokens);
+      const cachedRead = formatTokens(cur.cache_read_input_tokens || 0);
+      const cachedCreated = formatTokens(cur.cache_creation_input_tokens || 0);
+
+      let cacheInfo = '';
+      if ((cur.cache_read_input_tokens || 0) > 0 || (cur.cache_creation_input_tokens || 0) > 0) {
+        const cParts = [];
+        if ((cur.cache_read_input_tokens || 0) > 0) cParts.push(`💾${cachedRead}`);
+        if ((cur.cache_creation_input_tokens || 0) > 0) cParts.push(`🆕${cachedCreated}`);
+        cacheInfo = ` (${cParts.join('+')})`;
+      }
+
+      line3Parts.push(`Step: 📥${inTokens} 📤${outTokens}${cacheInfo}`);
+    }
+
+    // Total Session
+    if (context_window) {
+      const totalIn = formatTokens(context_window.total_input_tokens);
+      const totalOut = formatTokens(context_window.total_output_tokens);
+      line3Parts.push(`Total: 📥${totalIn} 📤${totalOut}`);
+    }
+
+    const line3 = line3Parts.join(separator);
+
+    // === LINE 4: Background tasks ===
+    const agyPid = getAgyPid();
+    const bgTasks = getBackgroundTasks(agyPid);
+    let line4 = '';
+    
+    if (bgTasks.length > 0) {
+      line4 = `${colorize('Background Tasks:', BRIGHT_YELLOW)} ${bgTasks.join(', ')}`;
+    } else {
+      line4 = `${colorize('Background Tasks:', GRAY)} none`;
+    }
+
+    // Print all 4 lines
+    console.log(`${line1}\n${line2}\n${line3}\n${line4}`);
+  } catch (error) {
+    console.error('Statusline error:', error);
+    // Print fallback 4 lines to console so parser doesn't break
+    console.log(`${colorize('● STATUSLINE ERROR', BRIGHT_RED, true)}\n\n\n`);
   }
-
-  // Total Session
-  if (context_window) {
-    const totalIn = formatTokens(context_window.total_input_tokens);
-    const totalOut = formatTokens(context_window.total_output_tokens);
-    line3Parts.push(`Total: 📥${totalIn} 📤${totalOut}`);
-  }
-
-  const line3 = line3Parts.join(separator);
-
-  // === LINE 4: Background tasks ===
-  const agyPid = getAgyPid();
-  const bgTasks = getBackgroundTasks(agyPid);
-  let line4 = '';
-  
-  if (bgTasks.length > 0) {
-    line4 = `${colorize('Background Tasks:', BRIGHT_YELLOW)} ${bgTasks.join(', ')}`;
-  } else {
-    line4 = `${colorize('Background Tasks:', GRAY)} none`;
-  }
-
-  // Print all 4 lines
-  console.log(`${line1}\n${line2}\n${line3}\n${line4}`);
 }
 
 main();
