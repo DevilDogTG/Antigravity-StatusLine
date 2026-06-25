@@ -231,14 +231,42 @@ function main() {
     }
     line1Parts.push(stateStr);
 
-    // Model
-    if (model && model.display_name) {
-      let modelName = String(model.display_name)
-        .replace(/\s*\(medium\)/i, '')
-        .replace(/\s*\(large\)/i, '')
+    // Model and Effort Info
+    if (model && (model.display_name || model.id)) {
+      let effort = model.effort || model.effort_level;
+      if (model.thinking_config && model.thinking_config.thinking_level) {
+        effort = effort || model.thinking_config.thinking_level;
+      }
+
+      let modelName = String(model.display_name || model.id);
+
+      // Extract effort from parenthesized suffix if not explicitly provided
+      const effortMatch = modelName.match(/\s*\(([^)]+)\)$/);
+      if (effortMatch) {
+        const potentialEffort = effortMatch[1].trim();
+        const lowerPotential = potentialEffort.toLowerCase();
+        if (lowerPotential !== 'pro' && lowerPotential !== 'flash') {
+          if (!effort) {
+            effort = potentialEffort;
+          }
+          modelName = modelName.substring(0, effortMatch.index);
+        }
+      }
+
+      // Standard cleanups
+      modelName = modelName
         .replace(/\s*\(flash\)/i, ' Flash')
         .replace(/\s*\(pro\)/i, ' Pro');
-      line1Parts.push(colorize(modelName, BRIGHT_CYAN, true));
+
+      if (effort) {
+        let effortStr = String(effort).trim();
+        if (effortStr) {
+          effortStr = effortStr.charAt(0).toUpperCase() + effortStr.slice(1).toLowerCase();
+        }
+        line1Parts.push(colorize(`${modelName} (${effortStr})`, BRIGHT_CYAN, true));
+      } else {
+        line1Parts.push(colorize(modelName, BRIGHT_CYAN, true));
+      }
     }
 
     // Git Status
