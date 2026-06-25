@@ -45,11 +45,16 @@ Background Tasks: none
 2. **Clone the repository** to a persistent location on your machine.
 3. **Run the installation script**:
    ```bash
+   # Configures the status line with the default 60-second refresh interval:
    npm run setup
+
+   # Or, specify a custom refresh interval in seconds (e.g., 90 seconds):
+   npm run setup -- 90
    ```
    This script is cross-platform (works on both Windows and Linux/macOS) and will:
    - Detect and backup your existing `settings.json` file.
    - Configure the `statusLine` command path automatically to point to your clone of `statusline.js`.
+   - Configure the `refreshInterval` setting in `settings.json` (defaults to 60 seconds) so the status line updates periodically when idle.
    - Make `statusline.js` executable (on Unix-like systems).
 4. **Reload**: If the Antigravity CLI is already running, type `/statusline on` to activate, or restart the CLI session.
 

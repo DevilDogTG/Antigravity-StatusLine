@@ -54,15 +54,25 @@ try {
   // We prefix the command with 'node' to execute it correctly.
   const command = isWindows ? `node ${statuslinePath}` : statuslinePath;
 
+  // Read optional custom refresh interval from command line argument, default to 60 seconds
+  let refreshInterval = 60;
+  if (process.argv[2]) {
+    const val = parseInt(process.argv[2], 10);
+    if (!isNaN(val) && val > 0) {
+      refreshInterval = val;
+    }
+  }
+
   config.statusLine = {
     type: 'command',
     command: command,
-    enabled: true
+    enabled: true,
+    refreshInterval: refreshInterval
   };
 
   // Write the updated configuration back
   fs.writeFileSync(settingsPath, JSON.stringify(config, null, 2), 'utf8');
-  console.log('✓ settings.json updated successfully.');
+  console.log(`✓ settings.json updated successfully with refreshInterval: ${refreshInterval}s.`);
 
   // 4. Handle executable permissions on Unix-like systems
   if (!isWindows) {
